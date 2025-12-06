@@ -1,0 +1,252 @@
+-- ============================================
+-- EXERCICE : GESTION ACADÉMIQUE
+-- MCD, MLD et Base de données
+-- ============================================
+
+-- ============================================
+-- 1. MODÈLE CONCEPTUEL DE DONNÉES (MCD)
+-- ============================================
+/*
+ENTITÉS :
+- COLLEGE (id_college, nom_college, site_internet, adresse, ville, code_postal)
+- DEPARTEMENT (id_departement, nom_departement)
+- ENSEIGNANT (id_enseignant, nom, prenom, tel, mail, date_prise_fonction, indice)
+- MATIERE (id_matiere, nom_matiere, coefficient)
+- SALLE (id_salle, numero_salle, nb_places, batiment, etage)
+- ETUDIANT (id_etudiant, nom, prenom, tel, mail, annee_entree)
+
+RELATIONS :
+- COLLEGE possède DEPARTEMENT (1:N)
+- DEPARTEMENT regroupe ENSEIGNANT (1:N)
+- DEPARTEMENT a pour responsable ENSEIGNANT (1:1)
+- ENSEIGNANT dispense MATIERE (N:1) - un enseignant = une seule matière
+- ENSEIGNANT enseigne MATIERE via ENSEIGNER (N:N) - une matière peut avoir plusieurs enseignants
+- MATIERE a lieu dans SALLE (N:1)
+- ETUDIANT suit MATIERE via SUIVRE (N:N) avec attribut note
+- COLLEGE accueille ETUDIANT (1:N)
+*/
+
+-- ============================================
+-- 2. MODÈLE LOGIQUE DE DONNÉES (MLD)
+-- ============================================
+/*
+COLLEGE (id_college, nom_college, site_internet, adresse, ville, code_postal)
+SALLE (id_salle, numero_salle, nb_places, batiment, etage)
+MATIERE (id_matiere, nom_matiere, coefficient, #id_salle)
+DEPARTEMENT (id_departement, nom_departement, #id_college, #id_responsable)
+ENSEIGNANT (id_enseignant, nom, prenom, tel, mail, date_prise_fonction, indice, #id_departement, #id_matiere)
+ETUDIANT (id_etudiant, nom, prenom, tel, mail, annee_entree, #id_college)
+ENSEIGNER (#id_enseignant, #id_matiere, nb_heures)
+SUIVRE (#id_etudiant, #id_matiere, note, date_evaluation)
+*/
+
+-- ============================================
+-- CRÉATION DE LA BASE DE DONNÉES
+-- ============================================
+
+DROP DATABASE IF EXISTS gestion_academie;
+CREATE DATABASE gestion_academie CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE gestion_academie;
+
+-- ============================================
+-- CRÉATION DES TABLES
+-- ============================================
+
+-- Table COLLEGE
+CREATE TABLE COLLEGE (
+    id_college INT AUTO_INCREMENT PRIMARY KEY,
+    nom_college VARCHAR(100) NOT NULL,
+    site_internet VARCHAR(200),
+    adresse VARCHAR(255),
+    ville VARCHAR(100),
+    code_postal VARCHAR(10)
+);
+
+-- Table SALLE
+CREATE TABLE SALLE (
+    id_salle INT AUTO_INCREMENT PRIMARY KEY,
+    numero_salle VARCHAR(20) NOT NULL,
+    nb_places INT NOT NULL CHECK (nb_places > 0),
+    batiment VARCHAR(50),
+    etage INT
+);
+
+-- Table MATIERE
+CREATE TABLE MATIERE (
+    id_matiere INT AUTO_INCREMENT PRIMARY KEY,
+    nom_matiere VARCHAR(100) NOT NULL,
+    coefficient INT DEFAULT 1,
+    id_salle INT NOT NULL,
+    FOREIGN KEY (id_salle) REFERENCES SALLE(id_salle)
+);
+
+-- Table DEPARTEMENT
+CREATE TABLE DEPARTEMENT (
+    id_departement INT AUTO_INCREMENT PRIMARY KEY,
+    nom_departement VARCHAR(100) NOT NULL,
+    id_college INT NOT NULL,
+    id_responsable INT,
+    FOREIGN KEY (id_college) REFERENCES COLLEGE(id_college)
+);
+
+-- Table ENSEIGNANT
+CREATE TABLE ENSEIGNANT (
+    id_enseignant INT AUTO_INCREMENT PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL,
+    prenom VARCHAR(100) NOT NULL,
+    tel VARCHAR(20),
+    mail VARCHAR(150) UNIQUE,
+    date_prise_fonction DATE NOT NULL,
+    indice INT,
+    id_departement INT NOT NULL,
+    id_matiere INT NOT NULL,
+    FOREIGN KEY (id_departement) REFERENCES DEPARTEMENT(id_departement),
+    FOREIGN KEY (id_matiere) REFERENCES MATIERE(id_matiere)
+);
+
+-- Ajout de la clé étrangère pour le responsable du département
+ALTER TABLE DEPARTEMENT 
+ADD FOREIGN KEY (id_responsable) REFERENCES ENSEIGNANT(id_enseignant);
+
+-- Table ETUDIANT
+CREATE TABLE ETUDIANT (
+    id_etudiant INT AUTO_INCREMENT PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL,
+    prenom VARCHAR(100) NOT NULL,
+    tel VARCHAR(20),
+    mail VARCHAR(150) UNIQUE,
+    annee_entree INT NOT NULL,
+    id_college INT NOT NULL,
+    FOREIGN KEY (id_college) REFERENCES COLLEGE(id_college)
+);
+
+-- Table ENSEIGNER (relation N:N entre ENSEIGNANT et MATIERE)
+CREATE TABLE ENSEIGNER (
+    id_enseignant INT,
+    id_matiere INT,
+    nb_heures INT DEFAULT 0,
+    PRIMARY KEY (id_enseignant, id_matiere),
+    FOREIGN KEY (id_enseignant) REFERENCES ENSEIGNANT(id_enseignant),
+    FOREIGN KEY (id_matiere) REFERENCES MATIERE(id_matiere)
+);
+
+-- Table SUIVRE (relation N:N entre ETUDIANT et MATIERE avec note)
+CREATE TABLE SUIVRE (
+    id_etudiant INT,
+    id_matiere INT,
+    note DECIMAL(4,2) CHECK (note >= 0 AND note <= 20),
+    date_evaluation DATE,
+    PRIMARY KEY (id_etudiant, id_matiere),
+    FOREIGN KEY (id_etudiant) REFERENCES ETUDIANT(id_etudiant),
+    FOREIGN KEY (id_matiere) REFERENCES MATIERE(id_matiere)
+);
+
+-- ============================================
+-- 3. INSERTION DES DONNÉES
+-- ============================================
+
+-- Insertion des COLLEGES
+INSERT INTO COLLEGE (nom_college, site_internet, adresse, ville, code_postal) VALUES
+('Collège Victor Hugo', 'www.college-victorhugo.fr', '15 rue des Écoles', 'Paris', '75005'),
+('Collège Jean Moulin', 'www.college-jeanmoulin.fr', '8 avenue de la République', 'Lyon', '69003'),
+('Collège Molière', 'www.college-moliere.fr', '23 boulevard Gambetta', 'Marseille', '13008');
+
+-- Insertion des SALLES
+INSERT INTO SALLE (numero_salle, nb_places, batiment, etage) VALUES
+('A101', 30, 'Bâtiment A', 1),
+('A102', 25, 'Bâtiment A', 1),
+('B201', 35, 'Bâtiment B', 2),
+('B202', 28, 'Bâtiment B', 2),
+('C301', 40, 'Bâtiment C', 3),
+('C302', 32, 'Bâtiment C', 3);
+
+-- Insertion des MATIERES
+INSERT INTO MATIERE (nom_matiere, coefficient, id_salle) VALUES
+('Mathématiques', 4, 1),
+('Français', 3, 2),
+('Anglais', 3, 3),
+('Histoire-Géographie', 3, 4),
+('Sciences Physiques', 3, 5),
+('SVT', 2, 6);
+
+-- Insertion des DEPARTEMENTS (sans responsable pour l'instant)
+INSERT INTO DEPARTEMENT (nom_departement, id_college, id_responsable) VALUES
+('Département Sciences', 1, NULL),
+('Département Lettres', 1, NULL),
+('Département Sciences', 2, NULL),
+('Département Langues', 2, NULL);
+
+-- Insertion des ENSEIGNANTS
+INSERT INTO ENSEIGNANT (nom, prenom, tel, mail, date_prise_fonction, indice, id_departement, id_matiere) VALUES
+('Dupont', 'Marie', '0601020304', 'marie.dupont@college.fr', '2020-09-01', 450, 1, 1),
+('Martin', 'Pierre', '0602030405', 'pierre.martin@college.fr', '2019-09-01', 500, 1, 5),
+('Bernard', 'Sophie', '0603040506', 'sophie.bernard@college.fr', '2021-09-01', 420, 2, 2),
+('Dubois', 'Jean', '0604050607', 'jean.dubois@college.fr', '2018-09-01', 520, 2, 3),
+('Moreau', 'Claire', '0605060708', 'claire.moreau@college.fr', '2022-09-01', 400, 1, 6),
+('Laurent', 'Thomas', '0606070809', 'thomas.laurent@college.fr', '2020-09-01', 460, 4, 4);
+
+-- Mise à jour des responsables de département
+UPDATE DEPARTEMENT SET id_responsable = 1 WHERE id_departement = 1;
+UPDATE DEPARTEMENT SET id_responsable = 3 WHERE id_departement = 2;
+UPDATE DEPARTEMENT SET id_responsable = 2 WHERE id_departement = 3;
+UPDATE DEPARTEMENT SET id_responsable = 6 WHERE id_departement = 4;
+
+-- Insertion des ETUDIANTS
+INSERT INTO ETUDIANT (nom, prenom, tel, mail, annee_entree, id_college) VALUES
+('Leroy', 'Alice', '0701020304', 'alice.leroy@etudiant.fr', 2023, 1),
+('Girard', 'Lucas', '0702030405', 'lucas.girard@etudiant.fr', 2023, 1),
+('Petit', 'Emma', '0703040506', 'emma.petit@etudiant.fr', 2023, 1),
+('Roux', 'Hugo', '0704050607', 'hugo.roux@etudiant.fr', 2023, 2),
+('Blanc', 'Léa', '0705060708', 'lea.blanc@etudiant.fr', 2023, 2),
+('Simon', 'Nathan', '0706070809', 'nathan.simon@etudiant.fr', 2023, 1),
+('Michel', 'Chloé', '0707080910', 'chloe.michel@etudiant.fr', 2023, 2),
+('Garnier', 'Louis', '0708091011', 'louis.garnier@etudiant.fr', 2023, 1);
+
+-- Insertion dans ENSEIGNER (enseignants qui enseignent des matières)
+INSERT INTO ENSEIGNER (id_enseignant, id_matiere, nb_heures) VALUES
+(1, 1, 4), -- Marie Dupont enseigne Maths
+(2, 5, 3), -- Pierre Martin enseigne Sciences Physiques
+(3, 2, 4), -- Sophie Bernard enseigne Français
+(4, 3, 3), -- Jean Dubois enseigne Anglais
+(5, 6, 2), -- Claire Moreau enseigne SVT
+(6, 4, 3), -- Thomas Laurent enseigne Histoire-Géo
+(1, 5, 2); -- Marie Dupont enseigne aussi Sciences Physiques
+
+-- Insertion dans SUIVRE (étudiants qui suivent des matières avec notes)
+INSERT INTO SUIVRE (id_etudiant, id_matiere, note, date_evaluation) VALUES
+-- Alice Leroy
+(1, 1, 15.50, '2024-11-15'),
+(1, 2, 14.00, '2024-11-16'),
+(1, 3, 16.00, '2024-11-17'),
+(1, 4, 13.50, '2024-11-18'),
+-- Lucas Girard
+(2, 1, 12.00, '2024-11-15'),
+(2, 2, 15.50, '2024-11-16'),
+(2, 3, 13.00, '2024-11-17'),
+(2, 5, 14.50, '2024-11-19'),
+-- Emma Petit
+(3, 1, 17.00, '2024-11-15'),
+(3, 2, 16.50, '2024-11-16'),
+(3, 4, 15.00, '2024-11-18'),
+(3, 6, 16.00, '2024-11-20'),
+-- Hugo Roux
+(4, 1, 11.50, '2024-11-15'),
+(4, 3, 12.50, '2024-11-17'),
+(4, 5, 13.00, '2024-11-19'),
+-- Léa Blanc
+(5, 2, 14.50, '2024-11-16'),
+(5, 3, 15.00, '2024-11-17'),
+(5, 4, 14.00, '2024-11-18'),
+(5, 6, 15.50, '2024-11-20'),
+-- Nathan Simon
+(6, 1, 16.00, '2024-11-15'),
+(6, 2, 15.00, '2024-11-16'),
+(6, 5, 14.50, '2024-11-19'),
+-- Chloé Michel
+(7, 1, 13.50, '2024-11-15'),
+(7, 3, 14.00, '2024-11-17'),
+(7, 4, 13.00, '2024-11-18'),
+-- Louis Garnier
+(8, 2, 16.50, '2024-11-16'),
+(8, 3, 15.50, '2024-11-17'),
+(8, 6, 16.00, '2024-11-20');
